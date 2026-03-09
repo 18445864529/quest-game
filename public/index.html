@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quest Online</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <div id="menu-screen" class="screen active">
+            <h1>Quest Online</h1>
+            <div class="menu-buttons">
+                <button id="create-room-btn">Create Room</button>
+                <button id="join-room-btn">Join Room</button>
+            </div>
+            
+            <div id="create-form" class="form hidden">
+                <input type="text" id="player-name-create" placeholder="Your name" maxlength="20">
+                <button id="create-confirm">Create</button>
+            </div>
+            
+            <div id="join-form" class="form hidden">
+                <input type="text" id="room-code" placeholder="Room code" maxlength="6">
+                <input type="text" id="player-name-join" placeholder="Your name" maxlength="20">
+                <button id="join-confirm">Join</button>
+            </div>
+        </div>
+
+        <div id="lobby-screen" class="screen">
+            <h2>Room: <span id="room-code-display"></span></h2>
+            <div id="players-list">
+                <h3>Players:</h3>
+                <ul id="players-ul"></ul>
+            </div>
+            <button id="start-game-btn" class="hidden">Start Game</button>
+            <div id="waiting-message">Waiting for host to start the game...</div>
+        </div>
+
+        <div id="game-screen" class="screen">
+            <div id="game-info">
+                <div id="role-info">
+                    <h3>Your Role: <span id="role-display"></span></h3>
+                    <div id="role-description"></div>
+                </div>
+                
+                <div id="quest-info">
+                    <h3>Quest <span id="quest-number"></span></h3>
+                    <div>Team Size: <span id="team-size"></span></div>
+                    <div>Leader: <span id="current-leader"></span></div>
+                    <div id="score">Good: <span id="good-score">0</span> | Evil: <span id="evil-score">0</span></div>
+                </div>
+            </div>
+
+            <div id="game-phase">
+                <div id="team-selection-phase" class="phase">
+                    <h3>Team Selection</h3>
+                    <div id="leader-actions" class="hidden">
+                        <p>You are the leader! Select your team:</p>
+                        <div id="player-selection"></div>
+                        <button id="confirm-team" class="hidden">Confirm Team</button>
+                    </div>
+                    <div id="waiting-for-leader">Waiting for leader to select team...</div>
+                </div>
+
+                <div id="quest-phase" class="phase hidden">
+                    <h3>Quest Phase</h3>
+                    <div id="selected-team-display">
+                        <p>Selected Team: <span id="team-members"></span></p>
+                    </div>
+                    
+                    <div id="quest-actions" class="hidden">
+                        <p>You are on the quest! Choose your card:</p>
+                        <div id="card-buttons">
+                            <button id="success-btn" class="card-btn success">Success</button>
+                            <button id="fail-btn" class="card-btn fail">Fail</button>
+                        </div>
+                    </div>
+                    
+                    <div id="leader-quest-actions" class="hidden">
+                        <p>As leader, you can use the magic token:</p>
+                        <div id="magic-token-targets"></div>
+                        <button id="skip-magic-token">Skip Magic Token</button>
+                    </div>
+                    
+                    <div id="quest-progress">
+                        <p>Cards played: <span id="cards-played">0</span>/<span id="cards-total">0</span></p>
+                    </div>
+                </div>
+
+                <div id="final-quest-phase" class="phase hidden">
+                    <h3>Final Quest!</h3>
+                    <p>Evil won 3 quests, but Good gets one last chance!</p>
+                    <div id="evil-guess-section" class="hidden">
+                        <p>Select ALL evil players:</p>
+                        <div id="final-quest-players"></div>
+                        <button id="submit-guess">Submit Guess</button>
+                    </div>
+                    <div id="waiting-for-guess">Waiting for good team to make their guess...</div>
+                </div>
+
+                <div id="game-over-phase" class="phase hidden">
+                    <h3>Game Over!</h3>
+                    <div id="winner-display"></div>
+                    <button id="new-game-btn">New Game</button>
+                </div>
+            </div>
+
+            <div id="messages">
+                <ul id="messages-list"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>

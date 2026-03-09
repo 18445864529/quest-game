@@ -1,0 +1,20 @@
+{
+  "name": "quest-online",
+  "version": "1.0.0",
+  "description": "Online version of Quest board game",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "keywords": ["quest", "board game", "socket.io", "multiplayer"],
+  "author": "",
+  "license": "MIT"
+}
