@@ -7,42 +7,78 @@ let players = [];
 let selectedPlayers = [];
 let appliedConfig = null;
 
-const configSettings = {
-  seats: 6,
-  characters: {
-    'Servant': 4, 'Merlin': 0, 'Percival': 0, 'Cleric': 0,
-    'Minion': 1, 'Morgana': 1, 'Assassin': 0, 'Mordred': 0, 'Oberon': 0, 'Blind Hunter': 0
-  }
-};
-
-// ─── Character Definitions (for config UI) ────────────────────────────────────
+// ─── Character Definitions ────────────────────────────────────────────────────
 const AVAILABLE_CHARACTERS = [
-  { name: 'Servant',      team: 'good', desc: 'Must play Success · no special knowledge' },
-  { name: 'Merlin',       team: 'good', desc: 'Sees all evil except Mordred · Assassin wins if they identify you' },
-  { name: 'Percival',     team: 'good', desc: 'Sees Merlin & Morgana as a pair (can\'t tell which is which)' },
-  { name: 'Cleric',       team: 'good', desc: 'Sees one random evil player · Blind Hunter must identify you' },
-  { name: 'Minion',       team: 'evil', desc: 'Can play Fail · knows Morgana, Assassin, Mordred' },
-  { name: 'Morgana',      team: 'evil', desc: 'Can play Fail · ignores Magic Token · appears as Merlin to Percival · knows other evil' },
-  { name: 'Assassin',     team: 'evil', desc: 'Can play Fail · if Good wins 3 quests, picks who is Merlin to steal victory · knows other evil' },
-  { name: 'Mordred',      team: 'evil', desc: 'Can play Fail · hidden from Merlin · knows other evil' },
-  { name: 'Oberon',       team: 'evil', desc: 'Can play Fail · completely isolated — doesn\'t know evil, evil don\'t know them' },
-  { name: 'Blind Hunter', team: 'evil', desc: 'Can play Fail · isolated · if Evil wins 3 quests, must identify 2 Good players by role' },
+  // Base Good
+  { name: 'Loyal Servant', team: 'good', category: 'base',     desc: 'No special ability · must play Success' },
+  { name: 'Duke',          team: 'good', category: 'base',     desc: 'During Good\'s Last Chance, may drop one hand after Evil is revealed' },
+  { name: 'Archduke',      team: 'good', category: 'base',     desc: 'During Good\'s Last Chance, may switch one player\'s hand after Evil is revealed' },
+  // Base Evil
+  { name: 'Minion',        team: 'evil', category: 'base',     desc: 'Can Fail · knows other evil (Minion, Morgan, Brute, Lunatic, Trickster, Revealer, Braggart, Saboteur)' },
+  { name: 'Morgan le Fay', team: 'evil', category: 'base',     desc: 'Not affected by Magic Token · knows other evil + knows who Scion is' },
+  { name: 'Scion',         team: 'evil', category: 'base',     desc: 'Can Fail · known to Morgan le Fay only · does not know other evil' },
+  { name: 'Changeling',    team: 'evil', category: 'base',     desc: 'Can Fail · unknown to all evil · does not know other evil' },
+  // Optional Good
+  { name: 'Cleric',        team: 'good', category: 'optional', desc: 'Secretly sees whether the first Leader is Good or Evil' },
+  { name: 'Youth',         team: 'good', category: 'optional', desc: 'Magic Token reverses: forces Fail instead of Success' },
+  { name: 'Troublemaker',  team: 'good', category: 'optional', desc: 'May lie about loyalty when asked' },
+  { name: 'Apprentice',    team: 'good', category: 'optional', desc: 'During Good\'s Last Chance, raises one hand (and optionally a second after Evil revealed)' },
+  { name: 'Arthur',        team: 'good', category: 'optional', desc: 'Knows Morgan le Fay · must remain hidden from the Blind Hunter\'s first guess' },
+  // Optional Evil
+  { name: 'Blind Hunter',  team: 'evil', category: 'optional', desc: 'Isolated from evil · activates The Hunt when Evil wins 3 quests: identify 2 Good roles to win' },
+  { name: 'Brute',         team: 'evil', category: 'optional', desc: 'Can Fail quests 1–3 only · forced Success on quests 4–5' },
+  { name: 'Lunatic',       team: 'evil', category: 'optional', desc: 'Must Fail EVERY quest — no choice' },
+  { name: 'Mutineer',      team: 'evil', category: 'optional', desc: 'Isolated from evil · may switch teams during Final Quest' },
+  { name: 'Trickster',     team: 'evil', category: 'optional', desc: 'Can Fail · may lie about loyalty when asked' },
+  { name: 'Revealer',      team: 'evil', category: 'optional', desc: 'Can Fail · automatically revealed as Evil after 3rd failed quest' },
+  // Promo
+  { name: 'Braggart',         team: 'evil',     category: 'promo', desc: 'Can Fail · automatically revealed as Evil if leader of 5th quest' },
+  { name: 'Galahad',          team: 'good',     category: 'promo', desc: 'May reveal self after 2nd failed quest to become next leader' },
+  { name: 'Reluctant Leader', team: 'good',     category: 'promo', desc: 'If leader during Quest 2 or 3 and on the team, must play Fail' },
+  { name: 'Saboteur',         team: 'evil',     category: 'promo', desc: 'Can Fail · once a Veteran (been on any previous quest), must always Fail' },
+  { name: 'Outsider',         team: 'evil',     category: 'promo', desc: 'Can Fail · not known by other evil · does not know other evil' },
+  { name: 'Percival',         team: 'good',     category: 'promo', desc: 'Knows who the Cleric is' },
+  { name: 'Sentinel',         team: 'good',     category: 'promo', desc: 'May investigate a player\'s loyalty when the first Amulet is used' },
+  { name: 'Lancelot',         team: 'variable', category: 'promo', desc: 'Add in pairs: one becomes Good, one becomes Evil · Lancelots know each other · neither knows other evil' },
 ];
 
 const ROLE_DESCRIPTIONS = {
-  'Servant':      'You serve Arthur. You must play Success cards on quests.',
-  'Merlin':       'You serve Arthur. You know who is evil (except Mordred). Stay hidden — if the Assassin identifies you after Good wins, Evil wins!',
-  'Percival':     'You serve Arthur. You see two players: one is Merlin, one is Morgana — but you don\'t know which is which.',
-  'Cleric':       'You serve Arthur. You must play Success. You know one evil player by name.',
-  'Minion':       'You serve Mordred. You can play Fail cards.',
-  'Morgana':      'You serve Mordred. You can play Fail. You ignore the Magic Token. You appear as Merlin to Percival.',
-  'Assassin':     'You serve Mordred. You can play Fail. If Good wins 3 quests, you get one chance to identify Merlin and steal the victory.',
-  'Mordred':      'You serve Mordred. You can play Fail. You are hidden from Merlin — they cannot see you.',
-  'Oberon':       'You serve Mordred. You can play Fail. You work completely alone — other evil don\'t know you, and you don\'t know them.',
-  'Blind Hunter': 'You serve Mordred. You can play Fail. You work alone. If Evil wins 3 quests, you must identify two Good players by their exact role to win.',
+  'Loyal Servant':  'You serve Arthur. You must play Success cards on all quests.',
+  'Duke':           'You serve Arthur. You must play Success. During Good\'s Last Chance, you may drop one hand after Evil is revealed.',
+  'Archduke':       'You serve Arthur. You must play Success. During Good\'s Last Chance, you may switch one player\'s hand after Evil is revealed.',
+  'Minion':         'You serve Mordred. You can play Fail cards.',
+  'Morgan le Fay':  'You serve Mordred. You can play Fail. You are NOT affected by the Magic Token.',
+  'Scion':          'You serve Mordred. You can play Fail. You do not know other evil players — but Morgan le Fay knows who you are.',
+  'Changeling':     'You serve Mordred. You can play Fail. Neither you nor other evil players know each other.',
+  'Cleric':         'You serve Arthur. You must play Success. At game start you secretly learn whether the first Leader is Good or Evil.',
+  'Youth':          'You serve Arthur. You must play Success — UNLESS the Magic Token is used on you, in which case you are forced to play Fail!',
+  'Troublemaker':   'You serve Arthur. You must play Success. You may lie about your loyalty when directly asked.',
+  'Apprentice':     'You serve Arthur. You must play Success. During Good\'s Last Chance, you may raise one hand, and a second after Evil is revealed.',
+  'Arthur':         'You serve Arthur. You must play Success. You know who Morgan le Fay is — but you must remain hidden from the Blind Hunter\'s first guess.',
+  'Blind Hunter':   'You serve Mordred. You can play Fail. You do not know other evil. When Evil wins 3 quests, you activate The Hunt: identify two Good players by role to win.',
+  'Brute':          'You serve Mordred. You can play Fail, but ONLY on the first three quests. On quests 4 and 5, you must play Success.',
+  'Lunatic':        'You serve Mordred. You MUST play Fail on EVERY quest — you have no choice.',
+  'Mutineer':       'You serve Mordred (for now). You do not know other evil. During the Final Quest, you may switch sides.',
+  'Trickster':      'You serve Mordred. You can play Fail. You may lie about your loyalty when directly asked.',
+  'Revealer':       'You serve Mordred. You can play Fail. After the third quest fails, your loyalty is automatically revealed to all players.',
+  'Braggart':       'You serve Mordred. You can play Fail. If you become Leader of the fifth quest, your loyalty is automatically revealed to all players.',
+  'Galahad':        'You serve Arthur. You must play Success. After the second failed quest, you may reveal yourself to become the next Leader.',
+  'Reluctant Leader':'You serve Arthur — reluctantly. If you are the Leader during Quest 2 or 3 AND you are on the quest team, you MUST play Fail.',
+  'Saboteur':       'You serve Mordred. You can play Fail. Once you have been on any previous quest (Veteran), you MUST Fail on all future quests.',
+  'Outsider':       'You serve Mordred. You can play Fail. You are not known to other evil players, and you do not know them.',
+  'Percival':       'You serve Arthur. You must play Success. You know who the Cleric is.',
+  'Sentinel':       'You serve Arthur. You must play Success. You may investigate a player\'s loyalty when the first Amulet is used.',
+  'Lancelot':       'You are Lancelot. You know the other Lancelot. Neither of you knows who else is Evil.',
 };
 
-// ─── DOM Elements ─────────────────────────────────────────────────────────────
+// ─── Config State ─────────────────────────────────────────────────────────────
+const configSettings = { seats: 6, characters: {} };
+AVAILABLE_CHARACTERS.forEach(c => { configSettings.characters[c.name] = 0; });
+configSettings.characters['Loyal Servant'] = 4;
+configSettings.characters['Minion'] = 1;
+configSettings.characters['Morgan le Fay'] = 1;
+
+// ─── DOM ──────────────────────────────────────────────────────────────────────
 const menuScreen         = document.getElementById('menu-screen');
 const lobbyScreen        = document.getElementById('lobby-screen');
 const gameScreen         = document.getElementById('game-screen');
@@ -75,7 +111,6 @@ const goodScore          = document.getElementById('good-score');
 const evilScore          = document.getElementById('evil-score');
 const teamSelectionPhase = document.getElementById('team-selection-phase');
 const questPhase         = document.getElementById('quest-phase');
-const assassinationPhase = document.getElementById('assassination-phase');
 const blindHunterPhase   = document.getElementById('blind-hunter-phase');
 const finalQuestPhase    = document.getElementById('final-quest-phase');
 const gameOverPhase      = document.getElementById('game-over-phase');
@@ -85,53 +120,44 @@ const playerSelection    = document.getElementById('player-selection');
 const confirmTeamBtn     = document.getElementById('confirm-team');
 const questActions       = document.getElementById('quest-actions');
 const leaderQuestActions = document.getElementById('leader-quest-actions');
-const successBtn         = document.getElementById('success-btn');
-const failBtn            = document.getElementById('fail-btn');
 const cardsPlayed        = document.getElementById('cards-played');
 const cardsTotal         = document.getElementById('cards-total');
 const messagesList       = document.getElementById('messages-list');
 
-// ─── Menu ─────────────────────────────────────────────────────────────────────
+// ─── Menu Events ──────────────────────────────────────────────────────────────
 createRoomBtn.addEventListener('click', () => { hideAllForms(); createForm.classList.remove('hidden'); });
 joinRoomBtn.addEventListener('click',   () => { hideAllForms(); joinForm.classList.remove('hidden'); });
-
 createConfirmBtn.addEventListener('click', () => {
   const name = playerNameCreate.value.trim();
   if (name) { socket.emit('create-room', name); currentPlayer = name; }
 });
-
 joinConfirmBtn.addEventListener('click', () => {
   const name = playerNameJoin.value.trim();
   const code = roomCodeInput.value.trim().toUpperCase();
   if (name && code) { socket.emit('join-room', code, name); currentPlayer = name; }
 });
 
-// ─── Lobby ────────────────────────────────────────────────────────────────────
+// ─── Lobby Events ─────────────────────────────────────────────────────────────
 startGameBtn.addEventListener('click', () => socket.emit('start-game', currentRoom));
-
 document.getElementById('seats-minus').addEventListener('click', () => {
   if (configSettings.seats > 4) { configSettings.seats--; seatsValueEl.textContent = configSettings.seats; refreshConfigUI(); }
 });
 document.getElementById('seats-plus').addEventListener('click', () => {
   if (configSettings.seats < 10) { configSettings.seats++; seatsValueEl.textContent = configSettings.seats; refreshConfigUI(); }
 });
-
 applyConfigBtn.addEventListener('click', () => {
   socket.emit('configure-room', currentRoom, { seats: configSettings.seats, characters: { ...configSettings.characters } });
 });
 
-// ─── Game ─────────────────────────────────────────────────────────────────────
+// ─── Game Events ──────────────────────────────────────────────────────────────
 confirmTeamBtn.addEventListener('click', () => socket.emit('select-team', currentRoom, selectedPlayers));
-successBtn.addEventListener('click', () => { socket.emit('play-quest-card', currentRoom, 'success'); hideQuestActions(); });
-failBtn.addEventListener('click',    () => { socket.emit('play-quest-card', currentRoom, 'fail');    hideQuestActions(); });
+document.getElementById('success-btn').addEventListener('click', () => { socket.emit('play-quest-card', currentRoom, 'success'); hideQuestActions(); });
+document.getElementById('fail-btn').addEventListener('click',    () => { socket.emit('play-quest-card', currentRoom, 'fail');    hideQuestActions(); });
 document.getElementById('skip-magic-token').addEventListener('click', () => leaderQuestActions.classList.add('hidden'));
-
 document.getElementById('submit-guess').addEventListener('click', () => {
-  const selected = Array.from(document.querySelectorAll('#final-quest-players .player-option.selected'))
-    .map(el => el.dataset.playerId);
+  const selected = Array.from(document.querySelectorAll('#final-quest-players .player-option.selected')).map(el => el.dataset.playerId);
   socket.emit('final-quest-guess', currentRoom, selected);
 });
-
 document.getElementById('new-game-btn').addEventListener('click', () => location.reload());
 
 // ─── Socket Events ────────────────────────────────────────────────────────────
@@ -150,8 +176,6 @@ socket.on('room-joined', (roomCode) => {
   currentRoom = roomCode;
   showLobby();
   roomCodeDisplay.textContent = roomCode;
-  startGameBtn.classList.add('hidden');
-  waitingMessage.classList.remove('hidden');
   addMessage(`Joined room ${roomCode}!`, 'success');
 });
 
@@ -175,28 +199,22 @@ socket.on('role-assigned', (role) => {
   roleDisplay.textContent = `${role.character} (${role.team})`;
   roleDisplay.className = `role-${role.team}`;
 
-  let desc = ROLE_DESCRIPTIONS[role.character] || (role.team === 'good' ? 'Play Success cards.' : 'You serve Mordred.');
+  let desc = ROLE_DESCRIPTIONS[role.character] || (role.team === 'good' ? 'Play Success.' : 'You serve Mordred.');
 
-  // Merlin sees evil players
-  if (role.evilPlayers && role.evilPlayers.length > 0) {
-    desc += ` Evil players: ${role.evilPlayers.map(p => p.name).join(', ')}.`;
-  }
-  // Percival sees the Merlin/Morgana pair
-  if (role.merlinPair && role.merlinPair.length > 0) {
-    desc += ` One of these is Merlin: ${role.merlinPair.map(p => p.name).join(', ')}.`;
-  }
-  // Cleric sees one evil player
-  if (role.clericReveal) {
-    desc += ` One evil player is: ${role.clericReveal.name}.`;
-  }
-  // Evil allies
   if (role.allies && role.allies.length > 0) {
     desc += ` Your evil allies: ${role.allies.map(a => `${a.name} (${a.character})`).join(', ')}.`;
   } else if (role.team === 'evil') {
     desc += ' You have no known allies.';
   }
+  if (role.scionInfo)    desc += ` You know the Scion: ${role.scionInfo.name}.`;
+  if (role.morganInfo)   desc += ` You know Morgan le Fay: ${role.morganInfo.name}.`;
+  if (role.clericInfo)   desc += ` The Cleric is: ${role.clericInfo.name}.`;
+  if (role.leaderInfo)   desc += ` The first Leader (${role.leaderInfo.name}) is ${role.leaderInfo.team.toUpperCase()}.`;
+  if (role.lancelotAllies && role.lancelotAllies.length > 0) {
+    desc += ` The other Lancelot: ${role.lancelotAllies.map(a => `${a.name} (${a.team})`).join(', ')}.`;
+  }
 
-  roleDescription.textContent = desc;
+  document.getElementById('role-description').textContent = desc;
 });
 
 socket.on('game-started', (data) => {
@@ -222,7 +240,6 @@ socket.on('card-played', (data) => {
   addMessage(`${data.cardsPlayed}/${data.totalNeeded} cards played`, 'info');
 });
 
-// Final quest-result (not the last one)
 socket.on('quest-result', (data) => {
   goodScore.textContent = data.goodWins;
   evilScore.textContent = data.evilWins;
@@ -236,51 +253,32 @@ socket.on('quest-result', (data) => {
   }, 3000);
 });
 
-// Last quest result (leads into endgame phase)
 socket.on('quest-result-final', (data) => {
   goodScore.textContent = data.goodWins;
   evilScore.textContent = data.evilWins;
   addMessage(`Quest ${data.succeeded ? 'succeeded' : 'failed'}! ${data.failCount} fail card(s).`, data.succeeded ? 'success' : 'error');
 });
 
+socket.on('players-revealed', (revealed) => {
+  revealed.forEach(r => {
+    addMessage(`⚠️ ${r.name} (${r.character}) has been revealed as ${r.team.toUpperCase()}!`, 'warning');
+  });
+});
+
 socket.on('magic-token-used', (data) => {
-  addMessage(`Magic token used on ${data.target}!`, 'warning');
+  if (data.tokenCard === 'fail') {
+    addMessage(`Magic Token used on ${data.target} — REVERSED! They must play Fail! (Youth)`, 'warning');
+  } else {
+    addMessage(`Magic Token used on ${data.target}! They must play Success.`, 'warning');
+  }
   cardsPlayed.textContent = data.cardsPlayed;
 });
 
-socket.on('magic-token-ignored', (name) => addMessage(`${name} (Morgana) ignored the magic token!`, 'warning'));
+socket.on('magic-token-ignored', (name) => addMessage(`${name} (Morgan le Fay) ignored the Magic Token!`, 'warning'));
 
-// ─── Assassination Phase ───────────────────────────────────────────────────────
-socket.on('assassination-phase', (data) => {
-  showPhase('assassination');
-  addMessage('Assassination phase! The Assassin seeks Merlin...', 'warning');
-
-  if (socket.id === data.assassinId) {
-    document.getElementById('assassin-actions').classList.remove('hidden');
-    document.getElementById('waiting-for-assassin').classList.add('hidden');
-
-    const container = document.getElementById('assassination-targets');
-    container.innerHTML = '';
-    players.forEach(p => {
-      if (p.id === socket.id) return;
-      const opt = document.createElement('div');
-      opt.className = 'player-option';
-      opt.textContent = p.name;
-      opt.addEventListener('click', () => {
-        if (confirm(`Are you sure ${p.name} is Merlin?`)) {
-          socket.emit('assassinate', currentRoom, p.id);
-        }
-      });
-      container.appendChild(opt);
-    });
-  }
-});
-
-// ─── Blind Hunter Phase ───────────────────────────────────────────────────────
 socket.on('blind-hunter-phase', (data) => {
   showPhase('blind-hunter');
-  addMessage('The Hunt! The Blind Hunter must identify two Good roles...', 'warning');
-
+  addMessage('The Hunt! The Blind Hunter must identify two Good players by role...', 'warning');
   if (socket.id === data.blindHunterId) {
     document.getElementById('blind-hunter-actions').classList.remove('hidden');
     document.getElementById('waiting-for-hunter').classList.add('hidden');
@@ -288,69 +286,13 @@ socket.on('blind-hunter-phase', (data) => {
   }
 });
 
-function buildHuntSlots(goodRoles) {
-  const container = document.getElementById('hunt-slots');
-  container.innerHTML = '';
-  const guesses = [{ playerId: null, roleName: null }, { playerId: null, roleName: null }];
-
-  for (let i = 0; i < 2; i++) {
-    const slot = document.createElement('div');
-    slot.className = 'hunt-slot';
-
-    const playerSel = document.createElement('select');
-    playerSel.className = 'hunt-select';
-    playerSel.innerHTML = '<option value="">— player —</option>';
-    players.forEach(p => {
-      if (p.id === socket.id) return;
-      const opt = document.createElement('option');
-      opt.value = p.id; opt.textContent = p.name;
-      playerSel.appendChild(opt);
-    });
-
-    const roleSel = document.createElement('select');
-    roleSel.className = 'hunt-select';
-    roleSel.innerHTML = '<option value="">— role —</option>';
-    goodRoles.forEach(role => {
-      const opt = document.createElement('option');
-      opt.value = role; opt.textContent = role;
-      roleSel.appendChild(opt);
-    });
-
-    playerSel.addEventListener('change', () => { guesses[i].playerId = playerSel.value || null; });
-    roleSel.addEventListener('change',   () => { guesses[i].roleName = roleSel.value || null; });
-
-    const label = document.createElement('span');
-    label.className = 'hunt-label';
-    label.textContent = `Guess ${i + 1}: `;
-
-    slot.appendChild(label);
-    slot.appendChild(playerSel);
-    const is = document.createElement('span');
-    is.textContent = ' is '; is.className = 'hunt-is';
-    slot.appendChild(is);
-    slot.appendChild(roleSel);
-    container.appendChild(slot);
-  }
-
-  document.getElementById('submit-hunt').onclick = () => {
-    if (guesses.every(g => g.playerId && g.roleName)) {
-      socket.emit('blind-hunter-guess', currentRoom, guesses);
-    } else {
-      addMessage('Select a player and role for both guesses.', 'error');
-    }
-  };
-}
-
-// ─── Final Quest Phase ────────────────────────────────────────────────────────
 socket.on('final-quest-phase', () => {
   showPhase('final-quest');
-  addMessage('Final Quest! Good must identify all evil players!', 'warning');
-
+  addMessage("Good's Last Chance! Identify all Evil players!", 'warning');
   const me = players.find(p => p.id === socket.id);
   if (me && me.role && me.role.team === 'good') {
     document.getElementById('evil-guess-section').classList.remove('hidden');
     document.getElementById('waiting-for-guess').classList.add('hidden');
-
     const container = document.getElementById('final-quest-players');
     container.innerHTML = '';
     players.forEach(p => {
@@ -367,40 +309,106 @@ socket.on('final-quest-phase', () => {
 
 socket.on('game-over', (data) => {
   showPhase('game-over');
-  document.getElementById('winner-display').innerHTML =
-    `<h3>${data.winner.toUpperCase()} WINS!</h3><p>${data.reason}</p>`;
+  document.getElementById('winner-display').innerHTML = `<h3>${data.winner.toUpperCase()} WINS!</h3><p>${data.reason}</p>`;
   addMessage(`Game Over: ${data.winner} wins — ${data.reason}`, 'success');
 });
 
 socket.on('error', (msg) => addMessage(msg, 'error'));
+
+// ─── Blind Hunter Hunt UI ─────────────────────────────────────────────────────
+function buildHuntSlots(goodRoles) {
+  const container = document.getElementById('hunt-slots');
+  container.innerHTML = '';
+  const guesses = [{ playerId: null, roleName: null }, { playerId: null, roleName: null }];
+
+  for (let i = 0; i < 2; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'hunt-slot';
+
+    const pSel = document.createElement('select');
+    pSel.className = 'hunt-select';
+    pSel.innerHTML = '<option value="">— player —</option>';
+    players.filter(p => p.id !== socket.id).forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id; opt.textContent = p.name;
+      pSel.appendChild(opt);
+    });
+
+    const rSel = document.createElement('select');
+    rSel.className = 'hunt-select';
+    rSel.innerHTML = '<option value="">— role —</option>';
+    goodRoles.forEach(role => {
+      const opt = document.createElement('option');
+      opt.value = role; opt.textContent = role;
+      rSel.appendChild(opt);
+    });
+
+    pSel.addEventListener('change', () => { guesses[i].playerId = pSel.value || null; });
+    rSel.addEventListener('change', () => { guesses[i].roleName = rSel.value || null; });
+
+    const label = document.createElement('span');
+    label.className = 'hunt-label';
+    label.textContent = `Guess ${i + 1}: `;
+    const isSpan = document.createElement('span');
+    isSpan.className = 'hunt-is';
+    isSpan.textContent = ' is ';
+
+    slot.appendChild(label); slot.appendChild(pSel); slot.appendChild(isSpan); slot.appendChild(rSel);
+    container.appendChild(slot);
+  }
+
+  document.getElementById('submit-hunt').onclick = () => {
+    if (guesses.every(g => g.playerId && g.roleName)) {
+      socket.emit('blind-hunter-guess', currentRoom, guesses);
+    } else {
+      addMessage('Select a player and role for both guesses.', 'error');
+    }
+  };
+}
 
 // ─── Config UI ────────────────────────────────────────────────────────────────
 function buildCharacterConfig() {
   const container = document.getElementById('character-rows');
   container.innerHTML = '';
 
-  // Group header
-  ['good', 'evil'].forEach(team => {
-    const header = document.createElement('div');
-    header.className = `char-team-header char-team-${team}`;
-    header.textContent = team === 'good' ? '⚔ Good' : '💀 Evil';
-    container.appendChild(header);
+  const categories = [
+    { key: 'base',     label: 'Base Characters' },
+    { key: 'optional', label: 'Optional Characters' },
+    { key: 'promo',    label: 'Promo Characters' },
+  ];
 
-    AVAILABLE_CHARACTERS.filter(c => c.team === team).forEach(char => {
-      const idSafe = char.name.replace(/\s+/g, '-');
-      const row = document.createElement('div');
-      row.className = 'character-row';
-      row.innerHTML = `
-        <div class="char-info">
-          <span class="char-name char-${char.team}">${char.name}</span>
-          <span class="char-desc">${char.desc}</span>
-        </div>
-        <div class="counter-control">
-          <button class="counter-btn" data-char="${char.name}" data-action="minus">−</button>
-          <span id="count-${idSafe}" class="char-count">${configSettings.characters[char.name] || 0}</span>
-          <button class="counter-btn" data-char="${char.name}" data-action="plus">+</button>
-        </div>`;
-      container.appendChild(row);
+  categories.forEach(cat => {
+    const goodChars = AVAILABLE_CHARACTERS.filter(c => c.category === cat.key && c.team === 'good');
+    const evilChars = AVAILABLE_CHARACTERS.filter(c => c.category === cat.key && (c.team === 'evil' || c.team === 'variable'));
+
+    const catHeader = document.createElement('div');
+    catHeader.className = 'char-category-header';
+    catHeader.textContent = cat.label;
+    container.appendChild(catHeader);
+
+    [['good', goodChars], ['evil', evilChars]].forEach(([team, chars]) => {
+      if (!chars.length) return;
+      const teamHeader = document.createElement('div');
+      teamHeader.className = `char-team-header char-team-${team}`;
+      teamHeader.textContent = team === 'good' ? '⚔ Good' : '💀 Evil / Special';
+      container.appendChild(teamHeader);
+
+      chars.forEach(char => {
+        const idSafe = char.name.replace(/\s+/g, '-');
+        const row = document.createElement('div');
+        row.className = 'character-row';
+        row.innerHTML = `
+          <div class="char-info">
+            <span class="char-name char-${char.team}">${char.name}</span>
+            <span class="char-desc">${char.desc}</span>
+          </div>
+          <div class="counter-control">
+            <button class="counter-btn" data-char="${char.name}" data-action="minus">−</button>
+            <span id="count-${idSafe}" class="char-count">${configSettings.characters[char.name] || 0}</span>
+            <button class="counter-btn" data-char="${char.name}" data-action="plus">+</button>
+          </div>`;
+        container.appendChild(row);
+      });
     });
   });
 
@@ -408,11 +416,7 @@ function buildCharacterConfig() {
     const btn = e.target.closest('.counter-btn');
     if (!btn) return;
     const { char, action } = btn.dataset;
-    if (action === 'plus') {
-      configSettings.characters[char] = (configSettings.characters[char] || 0) + 1;
-    } else {
-      configSettings.characters[char] = Math.max(0, (configSettings.characters[char] || 0) - 1);
-    }
+    configSettings.characters[char] = Math.max(0, (configSettings.characters[char] || 0) + (action === 'plus' ? 1 : -1));
     refreshConfigUI();
   });
 
@@ -426,12 +430,16 @@ function refreshConfigUI() {
     if (el) el.textContent = configSettings.characters[c.name] || 0;
   });
 
-  const total = Object.values(configSettings.characters).reduce((a, b) => a + b, 0);
-  const goodCount = AVAILABLE_CHARACTERS.filter(c => c.team === 'good')
-    .reduce((s, c) => s + (configSettings.characters[c.name] || 0), 0);
-  const evilCount = total - goodCount;
-  const valid = total === configSettings.seats && goodCount >= 1 && evilCount >= 1;
+  let goodCount = 0, evilCount = 0;
+  AVAILABLE_CHARACTERS.forEach(c => {
+    const n = configSettings.characters[c.name] || 0;
+    if (c.team === 'good') goodCount += n;
+    else if (c.team === 'evil') evilCount += n;
+    else if (c.team === 'variable') { goodCount += Math.floor(n / 2); evilCount += Math.ceil(n / 2); }
+  });
 
+  const total = goodCount + evilCount;
+  const valid = total === configSettings.seats && goodCount >= 1 && evilCount >= 1;
   configSummaryEl.textContent = `Total: ${total}/${configSettings.seats} · Good: ${goodCount} · Evil: ${evilCount}`;
   configSummaryEl.className = `config-summary ${valid ? 'valid' : 'invalid'}`;
   applyConfigBtn.disabled = !valid;
@@ -449,11 +457,10 @@ function updateStartButtonState() {
   }
 }
 
-// ─── Phase / Screen Helpers ───────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 const PHASES = {
   'team-selection': teamSelectionPhase,
   'quest':          questPhase,
-  'assassination':  assassinationPhase,
   'blind-hunter':   blindHunterPhase,
   'final-quest':    finalQuestPhase,
   'game-over':      gameOverPhase,
@@ -511,8 +518,8 @@ function updateConfirmButton() {
   confirmTeamBtn.classList.toggle('hidden', selectedPlayers.length !== parseInt(teamSize.textContent));
 }
 
-function showQuestActions() { questActions.classList.remove('hidden'); }
-function hideQuestActions() { questActions.classList.add('hidden'); }
+function showQuestActions() { document.getElementById('quest-actions').classList.remove('hidden'); }
+function hideQuestActions() { document.getElementById('quest-actions').classList.add('hidden'); }
 
 function getPlayerName(id) {
   const p = players.find(x => x.id === id);
