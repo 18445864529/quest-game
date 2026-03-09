@@ -20,14 +20,78 @@ const QUEST_CONFIG = {
   10: [3, 4, 4, 5, 5]
 };
 
-// Character definitions
-// knowsAllies: sees other evil players who also have knowsAllies=true
+// ─── Character Definitions ────────────────────────────────────────────────────
+// knowsAllies:       sees other evil players who also have knowsAllies (Minion/Morgana/Assassin/Mordred)
 // ignoresMagicToken: immune to leader's magic token
+// seesEvil:          sees all evil players at game start (except hiddenFromMerlin ones)
+// seesMerlinPair:    sees Merlin + Morgana as a shuffled pair (Percival ability)
+// seesOneEvil:       sees one random evil player's name (Cleric ability)
+// isAssassinTarget:  Assassin tries to identify this character to steal victory
+// isAssassin:        triggers assassination phase when Good wins 3 quests
+// isBlindHunter:     triggers blind-hunter phase when Evil wins 3 quests
+// hiddenFromMerlin:  Merlin cannot see this evil player (Mordred)
+// appearAsMerlin:    appears to Percival as Merlin (Morgana)
 const CHARACTERS = {
-  'Servant':      { team: 'good', knowsAllies: false, ignoresMagicToken: false },
-  'Minion':       { team: 'evil', knowsAllies: true,  ignoresMagicToken: false },
-  'Morgana':      { team: 'evil', knowsAllies: true,  ignoresMagicToken: true  },
-  'Blind Hunter': { team: 'evil', knowsAllies: false, ignoresMagicToken: false },
+  'Servant': {
+    team: 'good', knowsAllies: false, ignoresMagicToken: false,
+    seesEvil: false, seesMerlinPair: false, seesOneEvil: false,
+    isAssassinTarget: false, isAssassin: false, isBlindHunter: false,
+    hiddenFromMerlin: false, appearAsMerlin: false,
+  },
+  'Merlin': {
+    team: 'good', knowsAllies: false, ignoresMagicToken: false,
+    seesEvil: true, seesMerlinPair: false, seesOneEvil: false,
+    isAssassinTarget: true, isAssassin: false, isBlindHunter: false,
+    hiddenFromMerlin: false, appearAsMerlin: false,
+  },
+  'Percival': {
+    team: 'good', knowsAllies: false, ignoresMagicToken: false,
+    seesEvil: false, seesMerlinPair: true, seesOneEvil: false,
+    isAssassinTarget: false, isAssassin: false, isBlindHunter: false,
+    hiddenFromMerlin: false, appearAsMerlin: false,
+  },
+  'Cleric': {
+    team: 'good', knowsAllies: false, ignoresMagicToken: false,
+    seesEvil: false, seesMerlinPair: false, seesOneEvil: true,
+    isAssassinTarget: false, isAssassin: false, isBlindHunter: false,
+    hiddenFromMerlin: false, appearAsMerlin: false,
+  },
+  'Minion': {
+    team: 'evil', knowsAllies: true, ignoresMagicToken: false,
+    seesEvil: false, seesMerlinPair: false, seesOneEvil: false,
+    isAssassinTarget: false, isAssassin: false, isBlindHunter: false,
+    hiddenFromMerlin: false, appearAsMerlin: false,
+  },
+  'Morgana': {
+    team: 'evil', knowsAllies: true, ignoresMagicToken: true,
+    seesEvil: false, seesMerlinPair: false, seesOneEvil: false,
+    isAssassinTarget: false, isAssassin: false, isBlindHunter: false,
+    hiddenFromMerlin: false, appearAsMerlin: true,
+  },
+  'Assassin': {
+    team: 'evil', knowsAllies: true, ignoresMagicToken: false,
+    seesEvil: false, seesMerlinPair: false, seesOneEvil: false,
+    isAssassinTarget: false, isAssassin: true, isBlindHunter: false,
+    hiddenFromMerlin: false, appearAsMerlin: false,
+  },
+  'Mordred': {
+    team: 'evil', knowsAllies: true, ignoresMagicToken: false,
+    seesEvil: false, seesMerlinPair: false, seesOneEvil: false,
+    isAssassinTarget: false, isAssassin: false, isBlindHunter: false,
+    hiddenFromMerlin: true, appearAsMerlin: false,
+  },
+  'Oberon': {
+    team: 'evil', knowsAllies: false, ignoresMagicToken: false,
+    seesEvil: false, seesMerlinPair: false, seesOneEvil: false,
+    isAssassinTarget: false, isAssassin: false, isBlindHunter: false,
+    hiddenFromMerlin: false, appearAsMerlin: false,
+  },
+  'Blind Hunter': {
+    team: 'evil', knowsAllies: false, ignoresMagicToken: false,
+    seesEvil: false, seesMerlinPair: false, seesOneEvil: false,
+    isAssassinTarget: false, isAssassin: false, isBlindHunter: true,
+    hiddenFromMerlin: false, appearAsMerlin: false,
+  },
 };
 
 function createRoom(roomCode) {
@@ -49,7 +113,6 @@ function createRoom(roomCode) {
   };
 }
 
-// Default auto-assign (fallback if host doesn't configure)
 function assignRoles(playerCount) {
   const evilCount = Math.ceil(playerCount / 3);
   const roles = [];
@@ -63,7 +126,6 @@ function assignRoles(playerCount) {
   return roles;
 }
 
-// Assign roles from host-configured character list
 function assignRolesFromConfig(characters) {
   const roles = [];
   for (const [character, count] of Object.entries(characters)) {
@@ -88,6 +150,84 @@ function getQuestTeamSize(playerCount, questNumber) {
   return QUEST_CONFIG[playerCount][questNumber];
 }
 
+function sendRoleInfo(room) {
+  const allPlayers = Array.from(room.players.values());
+
+  room.players.forEach((p, playerId) => {
+    const charDef = CHARACTERS[p.role.character] || {};
+    const info = { ...p.role };
+
+    // Evil allies: Minion/Morgana/Assassin/Mordred see each other
+    info.allies = charDef.knowsAllies
+      ? allPlayers
+          .filter(o => o.id !== playerId && o.role.team === 'evil' && CHARACTERS[o.role.character]?.knowsAllies)
+          .map(o => ({ name: o.name, character: o.role.character }))
+      : [];
+
+    // Merlin sees all evil except Mordred
+    if (charDef.seesEvil) {
+      info.evilPlayers = allPlayers
+        .filter(o => o.role.team === 'evil' && !CHARACTERS[o.role.character]?.hiddenFromMerlin)
+        .map(o => ({ name: o.name }));
+    }
+
+    // Percival sees Merlin + Morgana as a shuffled pair (can't tell which is which)
+    if (charDef.seesMerlinPair) {
+      const pair = allPlayers
+        .filter(o => o.role.character === 'Merlin' || CHARACTERS[o.role.character]?.appearAsMerlin)
+        .map(o => ({ name: o.name }));
+      shuffle(pair);
+      info.merlinPair = pair;
+    }
+
+    // Cleric sees one random evil player's name
+    if (charDef.seesOneEvil) {
+      const evilList = allPlayers.filter(o => o.role.team === 'evil');
+      if (evilList.length > 0) {
+        const pick = evilList[Math.floor(Math.random() * evilList.length)];
+        info.clericReveal = { name: pick.name };
+      }
+    }
+
+    io.to(playerId).emit('role-assigned', info);
+  });
+}
+
+function resolveEndgame(room, roomCode) {
+  const allPlayers = Array.from(room.players.values());
+
+  if (room.goodWins === 3) {
+    // Check for assassination (needs both Merlin and Assassin)
+    const assassin = allPlayers.find(p => CHARACTERS[p.role.character]?.isAssassin);
+    const merlin = allPlayers.find(p => p.role.character === 'Merlin');
+
+    if (assassin && merlin) {
+      room.gamePhase = 'assassination';
+      io.to(roomCode).emit('assassination-phase', { assassinId: assassin.id });
+    } else {
+      room.gamePhase = 'game-over';
+      io.to(roomCode).emit('game-over', { winner: 'good', reason: 'Three quests succeeded!' });
+    }
+
+  } else if (room.evilWins === 3) {
+    // Check for blind hunter
+    const blindHunter = allPlayers.find(p => CHARACTERS[p.role.character]?.isBlindHunter);
+
+    if (blindHunter) {
+      room.gamePhase = 'blind-hunter';
+      const goodRolesInPlay = [...new Set(allPlayers.filter(p => p.role.team === 'good').map(p => p.role.character))];
+      io.to(roomCode).emit('blind-hunter-phase', {
+        blindHunterId: blindHunter.id,
+        goodRolesInPlay
+      });
+    } else {
+      room.gamePhase = 'final-quest';
+      io.to(roomCode).emit('final-quest-phase');
+    }
+  }
+}
+
+// ─── Socket Handlers ──────────────────────────────────────────────────────────
 io.on('connection', (socket) => {
   console.log('Player connected:', socket.id);
 
@@ -124,22 +264,15 @@ io.on('connection', (socket) => {
     const { seats, characters } = settings;
 
     if (!seats || seats < 4 || seats > 10) {
-      socket.emit('error', 'Seats must be between 4 and 10');
-      return;
+      socket.emit('error', 'Seats must be between 4 and 10'); return;
     }
-
-    // Validate all character names
     for (const char of Object.keys(characters)) {
-      if (!CHARACTERS[char]) {
-        socket.emit('error', `Unknown character: ${char}`);
-        return;
-      }
+      if (!CHARACTERS[char]) { socket.emit('error', `Unknown character: ${char}`); return; }
     }
 
     const total = Object.values(characters).reduce((a, b) => a + b, 0);
     if (total !== seats) {
-      socket.emit('error', `Total characters (${total}) must equal seats (${seats})`);
-      return;
+      socket.emit('error', `Total characters (${total}) must equal seats (${seats})`); return;
     }
 
     const goodCount = Object.entries(characters)
@@ -148,8 +281,7 @@ io.on('connection', (socket) => {
     const evilCount = total - goodCount;
 
     if (goodCount < 1 || evilCount < 1) {
-      socket.emit('error', 'Must have at least 1 good and 1 evil player');
-      return;
+      socket.emit('error', 'Must have at least 1 good and 1 evil player'); return;
     }
 
     room.settings = { seats, characters };
@@ -163,23 +295,20 @@ io.on('connection', (socket) => {
     if (!player || !player.isCreator) return;
 
     const playerCount = room.players.size;
-
     if (room.settings.seats) {
       if (playerCount !== room.settings.seats) {
-        socket.emit('error', `Need exactly ${room.settings.seats} players (currently ${playerCount})`);
-        return;
+        socket.emit('error', `Need exactly ${room.settings.seats} players (currently ${playerCount})`); return;
       }
     } else if (playerCount < 4) {
-      socket.emit('error', 'Need at least 4 players');
-      return;
+      socket.emit('error', 'Need at least 4 players'); return;
     }
 
     const roles = room.settings.characters
       ? assignRolesFromConfig(room.settings.characters)
       : assignRoles(playerCount);
 
-    let roleIndex = 0;
-    room.players.forEach((p) => { p.role = roles[roleIndex++]; });
+    let i = 0;
+    room.players.forEach((p) => { p.role = roles[i++]; });
 
     const playerIds = Array.from(room.players.keys());
     room.currentLeader = playerIds[Math.floor(Math.random() * playerIds.length)];
@@ -187,21 +316,7 @@ io.on('connection', (socket) => {
     room.gameStarted = true;
     room.gamePhase = 'team-selection';
 
-    // Send each player their role + ally info
-    room.players.forEach((p, playerId) => {
-      const charDef = CHARACTERS[p.role.character] || {};
-      let allies = [];
-      if (charDef.knowsAllies) {
-        allies = Array.from(room.players.values())
-          .filter(other =>
-            other.id !== playerId &&
-            other.role.team === 'evil' &&
-            CHARACTERS[other.role.character] && CHARACTERS[other.role.character].knowsAllies
-          )
-          .map(other => ({ name: other.name, character: other.role.character }));
-      }
-      io.to(playerId).emit('role-assigned', { ...p.role, allies });
-    });
+    sendRoleInfo(room);
 
     io.to(roomCode).emit('game-started', {
       currentLeader: room.currentLeader,
@@ -217,8 +332,7 @@ io.on('connection', (socket) => {
 
     const requiredSize = getQuestTeamSize(room.players.size, room.currentQuest);
     if (selectedPlayerIds.length !== requiredSize) {
-      socket.emit('error', `Team must have exactly ${requiredSize} players`);
-      return;
+      socket.emit('error', `Team must have exactly ${requiredSize} players`); return;
     }
 
     room.selectedTeam = selectedPlayerIds;
@@ -249,22 +363,18 @@ io.on('connection', (socket) => {
       room.questResults.push({ questNumber: room.currentQuest, succeeded: questSucceeded, failCount });
       if (questSucceeded) room.goodWins++; else room.evilWins++;
 
-      if (room.goodWins === 3) {
-        // Good completed 3 quests — good wins
-        room.gamePhase = 'game-over';
-        io.to(roomCode).emit('game-over', { winner: 'good', reason: 'Three quests succeeded' });
-      } else if (room.evilWins === 3) {
-        // Evil failed 3 quests — Good gets Final Quest chance
-        room.gamePhase = 'final-quest';
-        io.to(roomCode).emit('final-quest-phase');
+      if (room.goodWins === 3 || room.evilWins === 3) {
+        // Emit quest result first, then trigger endgame
+        io.to(roomCode).emit('quest-result-final', {
+          succeeded: questSucceeded, failCount,
+          goodWins: room.goodWins, evilWins: room.evilWins
+        });
+        resolveEndgame(room, roomCode);
       } else {
         room.currentQuest++;
-
-        // Pick next leader (prefer someone who hasn't led yet)
-        const availableLeaders = Array.from(room.players.keys())
-          .filter(id => !room.leaderHistory.includes(id));
-        if (availableLeaders.length > 0) {
-          room.currentLeader = availableLeaders[Math.floor(Math.random() * availableLeaders.length)];
+        const available = Array.from(room.players.keys()).filter(id => !room.leaderHistory.includes(id));
+        if (available.length > 0) {
+          room.currentLeader = available[Math.floor(Math.random() * available.length)];
         } else {
           room.leaderHistory = [];
           const others = Array.from(room.players.keys()).filter(id => id !== room.currentLeader);
@@ -274,10 +384,8 @@ io.on('connection', (socket) => {
         room.gamePhase = 'team-selection';
 
         io.to(roomCode).emit('quest-result', {
-          succeeded: questSucceeded,
-          failCount,
-          goodWins: room.goodWins,
-          evilWins: room.evilWins,
+          succeeded: questSucceeded, failCount,
+          goodWins: room.goodWins, evilWins: room.evilWins,
           nextLeader: room.currentLeader,
           questNumber: room.currentQuest,
           teamSize: getQuestTeamSize(room.players.size, room.currentQuest)
@@ -296,12 +404,11 @@ io.on('connection', (socket) => {
     if (!room || room.gamePhase !== 'quest-phase') return;
     if (socket.id !== room.currentLeader || room.magicTokenUsed) return;
 
-    const targetPlayer = room.players.get(targetPlayerId);
-    if (!targetPlayer || !room.selectedTeam.includes(targetPlayerId)) return;
+    const target = room.players.get(targetPlayerId);
+    if (!target || !room.selectedTeam.includes(targetPlayerId)) return;
 
-    const charDef = CHARACTERS[targetPlayer.role.character] || {};
-    if (charDef.ignoresMagicToken) {
-      io.to(roomCode).emit('magic-token-ignored', targetPlayer.name);
+    if (CHARACTERS[target.role.character]?.ignoresMagicToken) {
+      io.to(roomCode).emit('magic-token-ignored', target.name);
       return;
     }
 
@@ -310,12 +417,58 @@ io.on('connection', (socket) => {
     room.questCards.push({ playerId: targetPlayerId, card: 'success' });
 
     io.to(roomCode).emit('magic-token-used', {
-      target: targetPlayer.name,
+      target: target.name,
       cardsPlayed: room.questCards.length,
       totalNeeded: room.selectedTeam.length
     });
   });
 
+  // Assassin picks who they think is Merlin (after Good wins 3)
+  socket.on('assassinate', (roomCode, targetPlayerId) => {
+    const room = rooms.get(roomCode);
+    if (!room || room.gamePhase !== 'assassination') return;
+
+    const player = room.players.get(socket.id);
+    if (!player || !CHARACTERS[player.role.character]?.isAssassin) return;
+
+    const target = room.players.get(targetPlayerId);
+    if (!target) return;
+
+    room.gamePhase = 'game-over';
+    const correct = target.role.character === 'Merlin';
+    io.to(roomCode).emit('game-over', {
+      winner: correct ? 'evil' : 'good',
+      reason: correct
+        ? `Assassin identified Merlin (${target.name})! Evil wins despite 3 quests!`
+        : `Assassin guessed wrong (picked ${target.name}). Good wins!`
+    });
+  });
+
+  // Blind Hunter picks 2 players and names their Good roles (after Evil wins 3)
+  socket.on('blind-hunter-guess', (roomCode, guesses) => {
+    // guesses = [{ playerId, roleName }, { playerId, roleName }]
+    const room = rooms.get(roomCode);
+    if (!room || room.gamePhase !== 'blind-hunter') return;
+
+    const player = room.players.get(socket.id);
+    if (!player || !CHARACTERS[player.role.character]?.isBlindHunter) return;
+    if (!Array.isArray(guesses) || guesses.length !== 2) return;
+
+    const allCorrect = guesses.every(g => {
+      const target = room.players.get(g.playerId);
+      return target && target.role.character === g.roleName;
+    });
+
+    room.gamePhase = 'game-over';
+    io.to(roomCode).emit('game-over', {
+      winner: allCorrect ? 'evil' : 'good',
+      reason: allCorrect
+        ? 'Blind Hunter correctly identified the Good players! Evil wins!'
+        : 'Blind Hunter guessed wrong. Good wins!'
+    });
+  });
+
+  // Final Quest: Good team identifies all evil players (when no Blind Hunter)
   socket.on('final-quest-guess', (roomCode, evilPlayerIds) => {
     const room = rooms.get(roomCode);
     if (!room || room.gamePhase !== 'final-quest') return;
@@ -323,8 +476,7 @@ io.on('connection', (socket) => {
     if (!player || player.role.team !== 'good') return;
 
     const actualEvilIds = Array.from(room.players.values())
-      .filter(p => p.role.team === 'evil')
-      .map(p => p.id);
+      .filter(p => p.role.team === 'evil').map(p => p.id);
 
     const correct = evilPlayerIds.length === actualEvilIds.length &&
       evilPlayerIds.every(id => actualEvilIds.includes(id));
@@ -333,7 +485,7 @@ io.on('connection', (socket) => {
     io.to(roomCode).emit('game-over', {
       winner: correct ? 'good' : 'evil',
       reason: correct
-        ? 'Good correctly identified all evil players'
+        ? 'Good correctly identified all evil players!'
         : 'Good failed to identify all evil players — Evil wins!'
     });
   });

@@ -113,6 +113,27 @@
                     </div>
                 </div>
 
+                <div id="assassination-phase" class="phase hidden">
+                    <h3>⚔️ Assassination!</h3>
+                    <p>Good has won 3 quests — but the Assassin may steal victory!</p>
+                    <div id="assassin-actions" class="hidden">
+                        <p>You are the Assassin. Point your blade at Merlin:</p>
+                        <div id="assassination-targets"></div>
+                    </div>
+                    <div id="waiting-for-assassin">Waiting for the Assassin to strike...</div>
+                </div>
+
+                <div id="blind-hunter-phase" class="phase hidden">
+                    <h3>🏹 The Hunt!</h3>
+                    <p>Evil has won 3 quests — the Blind Hunter must earn the victory!</p>
+                    <div id="blind-hunter-actions" class="hidden">
+                        <p>You are the Blind Hunter. Identify two Good players by their exact role:</p>
+                        <div id="hunt-slots"></div>
+                        <button id="submit-hunt">Submit Guess</button>
+                    </div>
+                    <div id="waiting-for-hunter">Waiting for the Blind Hunter...</div>
+                </div>
+
                 <div id="final-quest-phase" class="phase hidden">
                     <h3>Final Quest!</h3>
                     <p>Evil won 3 quests, but Good gets one last chance!</p>

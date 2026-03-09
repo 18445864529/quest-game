@@ -349,6 +349,49 @@ input:focus {
 .config-summary.valid   { background: rgba(76, 175, 80, 0.25); color: #90EE90; }
 .config-summary.invalid { background: rgba(244, 67, 54, 0.2);  color: #FFB6C1; }
 
+.char-team-header {
+    font-size: 0.8em;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 6px 0 4px;
+    margin-top: 8px;
+    opacity: 0.7;
+}
+.char-team-header.char-team-good { color: #4CAF50; }
+.char-team-header.char-team-evil { color: #f44336; }
+
+/* Hunt slots (Blind Hunter phase) */
+.hunt-slot {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+}
+
+.hunt-label { font-weight: 600; white-space: nowrap; }
+.hunt-is    { color: rgba(255,255,255,0.6); white-space: nowrap; }
+
+.hunt-select, select {
+    padding: 8px 10px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 8px;
+    background: rgba(255,255,255,0.1);
+    color: white;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.hunt-select:focus, select:focus {
+    outline: none;
+    border-color: #ffd700;
+}
+
+select option { background: #1e3c72; color: white; }
+
 #config-display {
     margin: 10px 0;
     padding: 10px 14px;
