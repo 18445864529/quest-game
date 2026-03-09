@@ -261,6 +261,105 @@ input:focus {
     color: #FFD700;
 }
 
+/* ── Game Setup (host config) ── */
+#host-config {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    padding: 20px;
+    margin: 15px 0;
+}
+
+.config-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 15px;
+}
+
+.counter-control {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.counter-btn {
+    background: rgba(255, 255, 255, 0.15);
+    padding: 6px 14px;
+    font-size: 18px;
+    min-width: 36px;
+    border-radius: 6px;
+}
+
+.counter-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: none;
+}
+
+#seats-value, .char-count {
+    font-size: 1.3em;
+    font-weight: bold;
+    min-width: 24px;
+    text-align: center;
+}
+
+#character-config h4 {
+    margin-bottom: 10px;
+    color: #ffd700;
+}
+
+.character-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255, 255, 255, 0.07);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    gap: 10px;
+}
+
+.char-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex: 1;
+}
+
+.char-name {
+    font-weight: 700;
+    font-size: 1em;
+}
+
+.char-name.char-good { color: #4CAF50; }
+.char-name.char-evil { color: #f44336; }
+
+.char-desc {
+    font-size: 0.78em;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.config-summary {
+    text-align: center;
+    padding: 8px;
+    border-radius: 6px;
+    font-weight: 600;
+    margin: 12px 0 10px;
+}
+
+.config-summary.valid   { background: rgba(76, 175, 80, 0.25); color: #90EE90; }
+.config-summary.invalid { background: rgba(244, 67, 54, 0.2);  color: #FFB6C1; }
+
+#config-display {
+    margin: 10px 0;
+    padding: 10px 14px;
+    background: rgba(255, 215, 0, 0.08);
+    border-left: 3px solid #ffd700;
+    border-radius: 6px;
+    font-size: 0.9em;
+}
+
+.config-info-text { color: rgba(255, 255, 255, 0.8); }
+
 @media (max-width: 768px) {
     #game-info {
         grid-template-columns: 1fr;

@@ -30,9 +30,34 @@
         <div id="lobby-screen" class="screen">
             <h2>Room: <span id="room-code-display"></span></h2>
             <div id="players-list">
-                <h3>Players:</h3>
+                <h3>Players: <span id="player-count">0</span><span id="seats-needed"></span></h3>
                 <ul id="players-ul"></ul>
             </div>
+
+            <!-- Host-only configuration panel -->
+            <div id="host-config" class="hidden">
+                <h3>Game Setup</h3>
+                <div class="config-row">
+                    <label>Number of Seats:</label>
+                    <div class="counter-control">
+                        <button class="counter-btn" id="seats-minus">−</button>
+                        <span id="seats-value">6</span>
+                        <button class="counter-btn" id="seats-plus">+</button>
+                    </div>
+                </div>
+                <div id="character-config">
+                    <h4>Characters:</h4>
+                    <div id="character-rows"></div>
+                </div>
+                <div id="config-summary" class="config-summary invalid">Set characters above</div>
+                <button id="apply-config-btn" disabled>Apply Settings</button>
+            </div>
+
+            <!-- Shown to all players once config is applied -->
+            <div id="config-display">
+                <div id="config-info" class="config-info-text">No custom setup — host will use default roles.</div>
+            </div>
+
             <button id="start-game-btn" class="hidden">Start Game</button>
             <div id="waiting-message">Waiting for host to start the game...</div>
         </div>
