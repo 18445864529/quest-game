@@ -199,22 +199,27 @@ socket.on('role-assigned', (role) => {
   roleDisplay.textContent = `${role.character} (${role.team})`;
   roleDisplay.className = `role-${role.team}`;
 
-  let desc = ROLE_DESCRIPTIONS[role.character] || (role.team === 'good' ? 'Play Success.' : 'You serve Mordred.');
+  const desc = ROLE_DESCRIPTIONS[role.character] || (role.team === 'good' ? 'Play Success.' : 'You serve Mordred.');
 
+  const visionLines = [];
   if (role.allies && role.allies.length > 0) {
-    desc += ` Your evil allies: ${role.allies.map(a => `${a.name} (${a.character})`).join(', ')}.`;
+    visionLines.push(`🔴 Evil allies: ${role.allies.map(a => `<strong>${a.name}</strong> (${a.character})`).join(', ')}`);
   } else if (role.team === 'evil') {
-    desc += ' You have no known allies.';
+    visionLines.push('🔴 You have no known allies.');
   }
-  if (role.scionInfo)    desc += ` You know the Scion: ${role.scionInfo.name}.`;
-  if (role.morganInfo)   desc += ` You know Morgan le Fay: ${role.morganInfo.name}.`;
-  if (role.clericInfo)   desc += ` The Cleric is: ${role.clericInfo.name}.`;
-  if (role.leaderInfo)   desc += ` The first Leader (${role.leaderInfo.name}) is ${role.leaderInfo.team.toUpperCase()}.`;
+  if (role.scionInfo)    visionLines.push(`🔍 The Scion is: <strong>${role.scionInfo.name}</strong>`);
+  if (role.morganInfo)   visionLines.push(`🔍 Morgan le Fay is: <strong>${role.morganInfo.name}</strong>`);
+  if (role.clericInfo)   visionLines.push(`🔍 The Cleric is: <strong>${role.clericInfo.name}</strong>`);
+  if (role.leaderInfo)   visionLines.push(`🔍 First Leader: <strong>${role.leaderInfo.name}</strong> is <strong>${role.leaderInfo.team.toUpperCase()}</strong>`);
   if (role.lancelotAllies && role.lancelotAllies.length > 0) {
-    desc += ` The other Lancelot: ${role.lancelotAllies.map(a => `${a.name} (${a.team})`).join(', ')}.`;
+    visionLines.push(`🔍 The other Lancelot: ${role.lancelotAllies.map(a => `<strong>${a.name}</strong> (${a.team})`).join(', ')}`);
   }
 
-  document.getElementById('role-description').textContent = desc;
+  const visionHtml = visionLines.length > 0
+    ? `<div class="role-vision"><div class="role-vision-title">What you know:</div>${visionLines.map(l => `<div class="role-vision-line">${l}</div>`).join('')}</div>`
+    : '';
+
+  document.getElementById('role-description').innerHTML = `<span class="role-desc-text">${desc}</span>${visionHtml}`;
 });
 
 socket.on('game-started', (data) => {

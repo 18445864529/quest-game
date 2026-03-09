@@ -414,6 +414,30 @@ select option { background: #1e3c72; color: white; }
 
 .config-info-text { color: rgba(255, 255, 255, 0.8); }
 
+/* ── Role vision info ── */
+.role-vision {
+    margin-top: 10px;
+    padding: 10px 14px;
+    background: rgba(255, 215, 0, 0.08);
+    border-left: 3px solid #ffd700;
+    border-radius: 6px;
+    font-size: 0.88em;
+}
+
+.role-vision-title {
+    font-weight: 700;
+    color: #ffd700;
+    margin-bottom: 5px;
+    font-size: 0.95em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.role-vision-line {
+    margin: 3px 0;
+    color: rgba(255, 255, 255, 0.9);
+}
+
 @media (max-width: 768px) {
     #game-info {
         grid-template-columns: 1fr;
