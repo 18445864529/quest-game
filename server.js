@@ -292,7 +292,7 @@ io.on('connection', (socket) => {
   console.log('Player connected:', socket.id);
 
   socket.on('create-room', (playerName) => {
-    const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const roomCode = String(Math.floor(Math.random() * 900) + 100);
     const room = createRoom(roomCode);
     rooms.set(roomCode, room);
     room.players.set(socket.id, { id: socket.id, name: playerName, role: null, isCreator: true });
@@ -406,6 +406,7 @@ io.on('connection', (socket) => {
   socket.on('play-quest-card', (roomCode, cardType) => {
     const room = rooms.get(roomCode);
     if (!room || room.gamePhase !== 'quest-phase') return;
+    if (!room.magicTokenUsed) return; // leader must assign token first
     if (!room.selectedTeam.includes(socket.id)) return;
     if (room.questCards.some(c => c.playerId === socket.id)) return;
 

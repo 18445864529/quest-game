@@ -113,6 +113,7 @@ let questSizes = [];
 let questResults = [];       // {succeeded, failCount} per completed quest
 let currentQuestIndex = 0;
 let currentTeamSize = 0;
+let currentTeamIds = [];
 const teamSelectionPhase = document.getElementById('team-selection-phase');
 const questPhase         = document.getElementById('quest-phase');
 const blindHunterPhase   = document.getElementById('blind-hunter-phase');
@@ -137,7 +138,7 @@ createConfirmBtn.addEventListener('click', () => {
 });
 joinConfirmBtn.addEventListener('click', () => {
   const name = playerNameJoin.value.trim();
-  const code = roomCodeInput.value.trim().toUpperCase();
+  const code = roomCodeInput.value.trim();
   if (name && code) { socket.emit('join-room', code, name); currentPlayer = name; }
 });
 
@@ -232,6 +233,7 @@ socket.on('game-started', (data) => {
   questSizes = data.questSizes;
   questResults = [];
   buildQuestTracker();
+  document.getElementById('player-name-display').textContent = currentPlayer;
   currentLeader.textContent = getPlayerName(data.currentLeader);
   showPhase('team-selection');
   if (socket.id === data.currentLeader) showLeaderActions(data.teamSize); else hideLeaderActions();
@@ -243,7 +245,9 @@ socket.on('team-selected', (data) => {
   document.getElementById('team-members').textContent = data.teamNames.join(', ');
   cardsTotal.textContent = data.team.length;
   cardsPlayed.textContent = '0';
-  if (data.team.includes(socket.id)) showQuestActions(); else hideQuestActions();
+  currentTeamIds = data.team;
+  // Hide quest buttons until leader assigns the magic token
+  hideQuestActions();
 
   // Show magic token UI for the leader
   if (socket.id === currentLeaderId) {
@@ -252,7 +256,7 @@ socket.on('team-selected', (data) => {
     leaderQuestActions.classList.add('hidden');
   }
 
-  addMessage(`Team selected: ${data.teamNames.join(', ')}`, 'info');
+  addMessage(`Team selected: ${data.teamNames.join(', ')}. Waiting for leader to assign the magic token...`, 'info');
 });
 
 socket.on('card-played', (data) => {
@@ -296,14 +300,16 @@ socket.on('magic-token-used', (data) => {
   cardsPlayed.textContent = data.cardsPlayed;
   // Hide magic token UI (token is consumed)
   leaderQuestActions.classList.add('hidden');
-  // Hide quest buttons for the target (their card is forced)
-  if (data.targetId === socket.id) hideQuestActions();
+  // Show quest buttons for team members (except the forced target)
+  if (currentTeamIds.includes(socket.id) && data.targetId !== socket.id) showQuestActions();
 });
 
 socket.on('magic-token-on-morgan', (data) => {
   addMessage(`Magic Token used on ${data.target} (Morgan le Fay) — she can still choose her card!`, 'warning');
   // Hide token UI for leader (token is consumed)
   leaderQuestActions.classList.add('hidden');
+  // Show quest buttons for all team members (Morgan still chooses too)
+  if (currentTeamIds.includes(socket.id)) showQuestActions();
 });
 
 socket.on('blind-hunter-phase', (data) => {

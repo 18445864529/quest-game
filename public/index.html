@@ -21,7 +21,7 @@
             </div>
             
             <div id="join-form" class="form hidden">
-                <input type="text" id="room-code" placeholder="Room code" maxlength="6">
+                <input type="text" id="room-code" placeholder="Room code" maxlength="3" value="111">
                 <input type="text" id="player-name-join" placeholder="Your name" maxlength="20">
                 <button id="join-confirm">Join</button>
             </div>
@@ -72,6 +72,7 @@
                 <div id="quest-info">
                     <div id="quest-tracker"></div>
                     <div id="quest-meta">
+                        <div>You: <span id="player-name-display"></span></div>
                         <div>Leader: <span id="current-leader"></span></div>
                     </div>
                 </div>
