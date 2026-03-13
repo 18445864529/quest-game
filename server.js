@@ -291,8 +291,8 @@ function checkQuestComplete(room, roomCode) {
 io.on('connection', (socket) => {
   console.log('Player connected:', socket.id);
 
-  socket.on('create-room', (playerName) => {
-    const roomCode = String(Math.floor(Math.random() * 900) + 100);
+  socket.on('create-room', (playerName, requestedCode) => {
+    const roomCode = String(requestedCode || '111').substring(0, 3);
     const room = createRoom(roomCode);
     rooms.set(roomCode, room);
     room.players.set(socket.id, { id: socket.id, name: playerName, role: null, isCreator: true });

@@ -134,7 +134,8 @@ createRoomBtn.addEventListener('click', () => { hideAllForms(); createForm.class
 joinRoomBtn.addEventListener('click',   () => { hideAllForms(); joinForm.classList.remove('hidden'); });
 createConfirmBtn.addEventListener('click', () => {
   const name = playerNameCreate.value.trim();
-  if (name) { socket.emit('create-room', name); currentPlayer = name; }
+  const code = document.getElementById('room-code-create').value.trim() || '111';
+  if (name) { socket.emit('create-room', name, code); currentPlayer = name; }
 });
 joinConfirmBtn.addEventListener('click', () => {
   const name = playerNameJoin.value.trim();
