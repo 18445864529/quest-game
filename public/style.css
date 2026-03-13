@@ -164,10 +164,79 @@ input:focus {
     text-align: center;
 }
 
-#score {
-    margin-top: 10px;
-    font-size: 1.2em;
-    font-weight: bold;
+#quest-meta {
+    margin-top: 12px;
+    font-size: 1em;
+}
+
+/* ── Quest Tracker ── */
+#quest-tracker {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+}
+
+.quest-slot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+    min-width: 70px;
+}
+
+.quest-slot.current {
+    border-color: #ffd700;
+    background: rgba(255, 215, 0, 0.1);
+}
+
+.quest-label {
+    font-size: 0.75em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.quest-slot.current .quest-label {
+    color: #ffd700;
+}
+
+.quest-circle {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1em;
+    color: transparent;
+    transition: all 0.4s ease;
+}
+
+.quest-circle.success {
+    border-color: #4CAF50;
+    background: radial-gradient(circle, #4CAF50 60%, #388E3C);
+    box-shadow: 0 0 12px rgba(76, 175, 80, 0.5);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.quest-circle.fail {
+    border-color: #f44336;
+    background: radial-gradient(circle, #f44336 60%, #c62828);
+    box-shadow: 0 0 12px rgba(244, 67, 54, 0.5);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.quest-size {
+    font-size: 0.7em;
+    color: rgba(255, 255, 255, 0.5);
 }
 
 .phase {
@@ -442,14 +511,32 @@ select option { background: #1e3c72; color: white; }
     #game-info {
         grid-template-columns: 1fr;
     }
-    
+
     .menu-buttons {
         flex-direction: column;
         align-items: center;
     }
-    
+
     #card-buttons {
         flex-direction: column;
         align-items: center;
+    }
+
+    #quest-tracker {
+        gap: 4px;
+    }
+
+    .quest-slot {
+        padding: 6px 6px;
+        min-width: 54px;
+    }
+
+    .quest-circle {
+        width: 36px;
+        height: 36px;
+    }
+
+    .quest-label {
+        font-size: 0.65em;
     }
 }

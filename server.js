@@ -40,6 +40,7 @@ const QUEST_CONFIG = {
  *   isRevealer        Revealed as Evil after 3rd failed quest
  *   isBraggart        Revealed as Evil if leader of 5th quest
  *   isBlindHunter     Activates The Hunt when Evil wins 3 quests
+ *   knownToEvil       Visible to inEvilAllies players, but does not see them
  *   seesEvil          Outsider: sees all evil players but is not seen by them
  */
 const CHARACTERS = {
@@ -62,7 +63,7 @@ const CHARACTERS = {
   'Arthur':       { team: 'good', category: 'optional', seesMorganLeFay: true },
 
   // ─── Optional: Evil ────────────────────────────────────────────────────────
-  'Blind Hunter': { team: 'evil', category: 'optional', isBlindHunter: true },
+  'Blind Hunter': { team: 'evil', category: 'optional', isBlindHunter: true, knownToEvil: true },
   'Brute':        { team: 'evil', category: 'optional', inEvilAllies: true, canFailMaxQuestIndex: 3 },
   'Lunatic':      { team: 'evil', category: 'optional', inEvilAllies: true, alwaysFail: true },
   'Mutineer':     { team: 'evil', category: 'optional' },
@@ -156,10 +157,14 @@ function sendRoleInfo(room) {
     const def  = CHARACTERS[p.role.character] || {};
     const info = { ...p.role };
 
-    // Regular evil group sees each other
-    info.allies = def.inEvilAllies
-      ? evilAllies.filter(o => o.id !== playerId).map(o => ({ name: o.name, character: o.role.character }))
-      : [];
+    // Regular evil group sees each other + any knownToEvil characters
+    if (def.inEvilAllies) {
+      const knownToEvil = allPlayers.filter(o => o.id !== playerId && CHARACTERS[o.role.character]?.knownToEvil);
+      const visible = [...evilAllies.filter(o => o.id !== playerId), ...knownToEvil];
+      info.allies = visible.map(o => ({ name: o.name, character: o.role.character }));
+    } else {
+      info.allies = [];
+    }
 
     // Outsider sees all evil players (but they don't see Outsider)
     if (def.seesEvil) {
@@ -223,6 +228,63 @@ function resolveEndgame(room, roomCode) {
 
 function getQuestTeamSize(playerCount, questNumber) {
   return QUEST_CONFIG[playerCount][questNumber];
+}
+
+function checkQuestComplete(room, roomCode) {
+  if (room.questCards.length < room.selectedTeam.length) {
+    io.to(roomCode).emit('card-played', { cardsPlayed: room.questCards.length, totalNeeded: room.selectedTeam.length });
+    return;
+  }
+
+  // Add all team members to veterans
+  room.selectedTeam.forEach(id => room.veterans.add(id));
+
+  const failCount = room.questCards.filter(c => c.card === 'fail').length;
+  const succeeded = failCount === 0;
+  room.questResults.push({ questNumber: room.currentQuest, succeeded, failCount });
+  if (succeeded) room.goodWins++; else room.evilWins++;
+
+  if (room.goodWins === 3 || room.evilWins === 3) {
+    // Check for Revealer reveal (after 3rd failed quest)
+    const revealed = [];
+    if (room.evilWins === 3) {
+      Array.from(room.players.values())
+        .filter(p => CHARACTERS[p.role.character]?.isRevealer)
+        .forEach(p => revealed.push({ name: p.name, character: p.role.character, team: 'evil' }));
+    }
+    if (revealed.length) io.to(roomCode).emit('players-revealed', revealed);
+
+    io.to(roomCode).emit('quest-result-final', { succeeded, failCount, goodWins: room.goodWins, evilWins: room.evilWins });
+    resolveEndgame(room, roomCode);
+  } else {
+    room.currentQuest++;
+
+    // Pick next leader
+    const available = Array.from(room.players.keys()).filter(id => !room.leaderHistory.includes(id));
+    if (available.length > 0) {
+      room.currentLeader = available[Math.floor(Math.random() * available.length)];
+    } else {
+      room.leaderHistory = [];
+      const others = Array.from(room.players.keys()).filter(id => id !== room.currentLeader);
+      room.currentLeader = others[Math.floor(Math.random() * others.length)] || Array.from(room.players.keys())[0];
+    }
+    room.leaderHistory.push(room.currentLeader);
+    room.gamePhase = 'team-selection';
+
+    // Braggart must reveal if leader of 5th quest (index 4)
+    const newLeader = room.players.get(room.currentLeader);
+    if (room.currentQuest === 4 && newLeader && CHARACTERS[newLeader.role.character]?.isBraggart) {
+      io.to(roomCode).emit('players-revealed', [{ name: newLeader.name, character: 'Braggart', team: 'evil' }]);
+    }
+
+    io.to(roomCode).emit('quest-result', {
+      succeeded, failCount,
+      goodWins: room.goodWins, evilWins: room.evilWins,
+      nextLeader: room.currentLeader,
+      questNumber: room.currentQuest,
+      teamSize: getQuestTeamSize(room.players.size, room.currentQuest)
+    });
+  }
 }
 
 // ─── Socket Handlers ──────────────────────────────────────────────────────────
@@ -315,7 +377,8 @@ io.on('connection', (socket) => {
     io.to(roomCode).emit('game-started', {
       currentLeader: room.currentLeader,
       questNumber: room.currentQuest,
-      teamSize: getQuestTeamSize(playerCount, room.currentQuest)
+      teamSize: getQuestTeamSize(playerCount, room.currentQuest),
+      questSizes: QUEST_CONFIG[playerCount]
     });
   });
 
@@ -366,60 +429,7 @@ io.on('connection', (socket) => {
     }
 
     room.questCards.push({ playerId: socket.id, card: actualCard });
-
-    if (room.questCards.length === room.selectedTeam.length) {
-      // Add all team members to veterans
-      room.selectedTeam.forEach(id => room.veterans.add(id));
-
-      const failCount = room.questCards.filter(c => c.card === 'fail').length;
-      const succeeded = failCount === 0;
-      room.questResults.push({ questNumber: room.currentQuest, succeeded, failCount });
-      if (succeeded) room.goodWins++; else room.evilWins++;
-
-      if (room.goodWins === 3 || room.evilWins === 3) {
-        // Check for Revealer reveal (after 3rd failed quest)
-        const revealed = [];
-        if (room.evilWins === 3) {
-          Array.from(room.players.values())
-            .filter(p => CHARACTERS[p.role.character]?.isRevealer)
-            .forEach(p => revealed.push({ name: p.name, character: p.role.character, team: 'evil' }));
-        }
-        if (revealed.length) io.to(roomCode).emit('players-revealed', revealed);
-
-        io.to(roomCode).emit('quest-result-final', { succeeded, failCount, goodWins: room.goodWins, evilWins: room.evilWins });
-        resolveEndgame(room, roomCode);
-      } else {
-        room.currentQuest++;
-
-        // Pick next leader
-        const available = Array.from(room.players.keys()).filter(id => !room.leaderHistory.includes(id));
-        if (available.length > 0) {
-          room.currentLeader = available[Math.floor(Math.random() * available.length)];
-        } else {
-          room.leaderHistory = [];
-          const others = Array.from(room.players.keys()).filter(id => id !== room.currentLeader);
-          room.currentLeader = others[Math.floor(Math.random() * others.length)] || Array.from(room.players.keys())[0];
-        }
-        room.leaderHistory.push(room.currentLeader);
-        room.gamePhase = 'team-selection';
-
-        // Braggart must reveal if leader of 5th quest (index 4)
-        const newLeader = room.players.get(room.currentLeader);
-        if (room.currentQuest === 4 && newLeader && CHARACTERS[newLeader.role.character]?.isBraggart) {
-          io.to(roomCode).emit('players-revealed', [{ name: newLeader.name, character: 'Braggart', team: 'evil' }]);
-        }
-
-        io.to(roomCode).emit('quest-result', {
-          succeeded, failCount,
-          goodWins: room.goodWins, evilWins: room.evilWins,
-          nextLeader: room.currentLeader,
-          questNumber: room.currentQuest,
-          teamSize: getQuestTeamSize(room.players.size, room.currentQuest)
-        });
-      }
-    } else {
-      io.to(roomCode).emit('card-played', { cardsPlayed: room.questCards.length, totalNeeded: room.selectedTeam.length });
-    }
+    checkQuestComplete(room, roomCode);
   });
 
   socket.on('use-magic-token', (roomCode, targetPlayerId) => {
@@ -443,10 +453,14 @@ io.on('connection', (socket) => {
 
     io.to(roomCode).emit('magic-token-used', {
       target: target.name,
+      targetId: targetPlayerId,
       tokenCard,
       cardsPlayed: room.questCards.length,
       totalNeeded: room.selectedTeam.length
     });
+
+    // Check if all cards are now in (token may have completed the quest)
+    checkQuestComplete(room, roomCode);
   });
 
   socket.on('blind-hunter-guess', (roomCode, guesses) => {

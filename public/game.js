@@ -3,6 +3,7 @@ const socket = io();
 // ─── State ────────────────────────────────────────────────────────────────────
 let currentRoom = null;
 let currentPlayer = null;
+let currentLeaderId = null;
 let players = [];
 let selectedPlayers = [];
 let appliedConfig = null;
@@ -104,11 +105,14 @@ const applyConfigBtn     = document.getElementById('apply-config-btn');
 const configInfoEl       = document.getElementById('config-info');
 const roleDisplay        = document.getElementById('role-display');
 const roleDescription    = document.getElementById('role-description');
-const questNumber        = document.getElementById('quest-number');
-const teamSize           = document.getElementById('team-size');
+const questTracker       = document.getElementById('quest-tracker');
 const currentLeader      = document.getElementById('current-leader');
-const goodScore          = document.getElementById('good-score');
-const evilScore          = document.getElementById('evil-score');
+
+// Quest tracker state
+let questSizes = [];
+let questResults = [];       // {succeeded, failCount} per completed quest
+let currentQuestIndex = 0;
+let currentTeamSize = 0;
 const teamSelectionPhase = document.getElementById('team-selection-phase');
 const questPhase         = document.getElementById('quest-phase');
 const blindHunterPhase   = document.getElementById('blind-hunter-phase');
@@ -223,8 +227,12 @@ socket.on('role-assigned', (role) => {
 });
 
 socket.on('game-started', (data) => {
-  questNumber.textContent = data.questNumber + 1;
-  teamSize.textContent = data.teamSize;
+  currentLeaderId = data.currentLeader;
+  currentQuestIndex = data.questNumber;
+  currentTeamSize = data.teamSize;
+  questSizes = data.questSizes;
+  questResults = [];
+  buildQuestTracker();
   currentLeader.textContent = getPlayerName(data.currentLeader);
   showPhase('team-selection');
   if (socket.id === data.currentLeader) showLeaderActions(data.teamSize); else hideLeaderActions();
@@ -237,6 +245,14 @@ socket.on('team-selected', (data) => {
   cardsTotal.textContent = data.team.length;
   cardsPlayed.textContent = '0';
   if (data.team.includes(socket.id)) showQuestActions(); else hideQuestActions();
+
+  // Show magic token UI for the leader
+  if (socket.id === currentLeaderId) {
+    showMagicTokenTargets(data.team, data.teamNames);
+  } else {
+    leaderQuestActions.classList.add('hidden');
+  }
+
   addMessage(`Team selected: ${data.teamNames.join(', ')}`, 'info');
 });
 
@@ -246,12 +262,14 @@ socket.on('card-played', (data) => {
 });
 
 socket.on('quest-result', (data) => {
-  goodScore.textContent = data.goodWins;
-  evilScore.textContent = data.evilWins;
+  questResults.push({ succeeded: data.succeeded, failCount: data.failCount });
+  updateQuestTracker(currentQuestIndex, data.succeeded, data.failCount);
   addMessage(`Quest ${data.succeeded ? 'succeeded' : 'failed'}! ${data.failCount} fail card(s).`, data.succeeded ? 'success' : 'error');
   setTimeout(() => {
-    questNumber.textContent = data.questNumber + 1;
-    teamSize.textContent = data.teamSize;
+    currentLeaderId = data.nextLeader;
+    currentQuestIndex = data.questNumber;
+    currentTeamSize = data.teamSize;
+    highlightCurrentQuest();
     currentLeader.textContent = getPlayerName(data.nextLeader);
     showPhase('team-selection');
     if (socket.id === data.nextLeader) showLeaderActions(data.teamSize); else hideLeaderActions();
@@ -259,8 +277,8 @@ socket.on('quest-result', (data) => {
 });
 
 socket.on('quest-result-final', (data) => {
-  goodScore.textContent = data.goodWins;
-  evilScore.textContent = data.evilWins;
+  questResults.push({ succeeded: data.succeeded, failCount: data.failCount });
+  updateQuestTracker(currentQuestIndex, data.succeeded, data.failCount);
   addMessage(`Quest ${data.succeeded ? 'succeeded' : 'failed'}! ${data.failCount} fail card(s).`, data.succeeded ? 'success' : 'error');
 });
 
@@ -277,6 +295,10 @@ socket.on('magic-token-used', (data) => {
     addMessage(`Magic Token used on ${data.target}! They must play Success.`, 'warning');
   }
   cardsPlayed.textContent = data.cardsPlayed;
+  // Hide magic token UI (token is consumed)
+  leaderQuestActions.classList.add('hidden');
+  // Hide quest buttons for the target (their card is forced)
+  if (data.targetId === socket.id) hideQuestActions();
 });
 
 socket.on('magic-token-ignored', (name) => addMessage(`${name} (Morgan le Fay) ignored the Magic Token!`, 'warning'));
@@ -520,7 +542,50 @@ function togglePlayerSelection(el, id, required) {
 }
 
 function updateConfirmButton() {
-  confirmTeamBtn.classList.toggle('hidden', selectedPlayers.length !== parseInt(teamSize.textContent));
+  confirmTeamBtn.classList.toggle('hidden', selectedPlayers.length !== currentTeamSize);
+}
+
+// ─── Quest Tracker ───────────────────────────────────────────────────────────
+function buildQuestTracker() {
+  questTracker.innerHTML = '';
+  questSizes.forEach((size, i) => {
+    const slot = document.createElement('div');
+    slot.className = 'quest-slot' + (i === currentQuestIndex ? ' current' : '');
+    slot.id = `quest-slot-${i}`;
+    slot.innerHTML = `
+      <div class="quest-label">Quest ${i + 1}</div>
+      <div class="quest-circle"></div>
+      <div class="quest-size">${size} players</div>`;
+    questTracker.appendChild(slot);
+  });
+}
+
+function updateQuestTracker(questIndex, succeeded, failCount) {
+  const slot = document.getElementById(`quest-slot-${questIndex}`);
+  if (!slot) return;
+  const circle = slot.querySelector('.quest-circle');
+  circle.classList.add(succeeded ? 'success' : 'fail');
+  circle.textContent = succeeded ? '\u2713' : failCount;
+  slot.classList.remove('current');
+}
+
+function highlightCurrentQuest() {
+  document.querySelectorAll('.quest-slot').forEach(s => s.classList.remove('current'));
+  const slot = document.getElementById(`quest-slot-${currentQuestIndex}`);
+  if (slot) slot.classList.add('current');
+}
+
+function showMagicTokenTargets(teamIds, teamNames) {
+  const container = document.getElementById('magic-token-targets');
+  container.innerHTML = '';
+  teamIds.forEach((id, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'magic-token-btn';
+    btn.textContent = teamNames[i];
+    btn.addEventListener('click', () => socket.emit('use-magic-token', currentRoom, id));
+    container.appendChild(btn);
+  });
+  leaderQuestActions.classList.remove('hidden');
 }
 
 function showQuestActions() { document.getElementById('quest-actions').classList.remove('hidden'); }
