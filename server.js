@@ -40,6 +40,7 @@ const QUEST_CONFIG = {
  *   isRevealer        Revealed as Evil after 3rd failed quest
  *   isBraggart        Revealed as Evil if leader of 5th quest
  *   isBlindHunter     Activates The Hunt when Evil wins 3 quests
+ *   seesEvil          Outsider: sees all evil players but is not seen by them
  */
 const CHARACTERS = {
   // ─── Base: Good ────────────────────────────────────────────────────────────
@@ -73,7 +74,7 @@ const CHARACTERS = {
   'Galahad':           { team: 'good', category: 'promo' },
   'Reluctant Leader':  { team: 'good', category: 'promo', isReluctantLeader: true },
   'Saboteur':          { team: 'evil', category: 'promo', inEvilAllies: true, isSaboteur: true },
-  'Outsider':          { team: 'evil', category: 'promo' },
+  'Outsider':          { team: 'evil', category: 'promo', seesEvil: true },
   'Percival':          { team: 'good', category: 'promo', seesCleric: true },
   'Sentinel':          { team: 'good', category: 'promo' },
   'Lancelot':          { team: 'variable', category: 'promo', isLancelot: true },
@@ -159,6 +160,12 @@ function sendRoleInfo(room) {
     info.allies = def.inEvilAllies
       ? evilAllies.filter(o => o.id !== playerId).map(o => ({ name: o.name, character: o.role.character }))
       : [];
+
+    // Outsider sees all evil players (but they don't see Outsider)
+    if (def.seesEvil) {
+      const evilPlayers = allPlayers.filter(o => o.id !== playerId && o.role.team === 'evil');
+      info.allies = evilPlayers.map(o => ({ name: o.name, character: o.role.character }));
+    }
 
     // Morgan le Fay also sees Scion
     if (def.knowsScion) {
