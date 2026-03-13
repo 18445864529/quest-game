@@ -157,7 +157,6 @@ applyConfigBtn.addEventListener('click', () => {
 confirmTeamBtn.addEventListener('click', () => socket.emit('select-team', currentRoom, selectedPlayers));
 document.getElementById('success-btn').addEventListener('click', () => { socket.emit('play-quest-card', currentRoom, 'success'); hideQuestActions(); });
 document.getElementById('fail-btn').addEventListener('click',    () => { socket.emit('play-quest-card', currentRoom, 'fail');    hideQuestActions(); });
-document.getElementById('skip-magic-token').addEventListener('click', () => leaderQuestActions.classList.add('hidden'));
 document.getElementById('submit-guess').addEventListener('click', () => {
   const selected = Array.from(document.querySelectorAll('#final-quest-players .player-option.selected')).map(el => el.dataset.playerId);
   socket.emit('final-quest-guess', currentRoom, selected);
@@ -301,7 +300,11 @@ socket.on('magic-token-used', (data) => {
   if (data.targetId === socket.id) hideQuestActions();
 });
 
-socket.on('magic-token-ignored', (name) => addMessage(`${name} (Morgan le Fay) ignored the Magic Token!`, 'warning'));
+socket.on('magic-token-on-morgan', (data) => {
+  addMessage(`Magic Token used on ${data.target} (Morgan le Fay) — she can still choose her card!`, 'warning');
+  // Hide token UI for leader (token is consumed)
+  leaderQuestActions.classList.add('hidden');
+});
 
 socket.on('blind-hunter-phase', (data) => {
   showPhase('blind-hunter');

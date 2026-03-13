@@ -441,13 +441,32 @@ io.on('connection', (socket) => {
     if (!target || !room.selectedTeam.includes(targetPlayerId)) return;
 
     const targetDef = CHARACTERS[target.role.character] || {};
+    room.magicTokenUsed = true;
+
+    // Morgan le Fay: token is consumed but she can still choose her card
     if (targetDef.ignoresMagicToken) {
-      io.to(roomCode).emit('magic-token-ignored', target.name);
+      io.to(roomCode).emit('magic-token-on-morgan', {
+        target: target.name,
+        targetId: targetPlayerId
+      });
       return;
     }
 
-    const tokenCard = targetDef.magicTokenCard || 'success';
-    room.magicTokenUsed = true;
+    // Determine forced card based on character abilities
+    let tokenCard;
+    if (targetDef.alwaysFail) {
+      tokenCard = 'fail';
+    } else if (targetDef.isReluctantLeader && targetPlayerId === room.currentLeader &&
+               (room.currentQuest === 1 || room.currentQuest === 2)) {
+      tokenCard = 'fail';
+    } else if (targetDef.magicTokenCard) {
+      tokenCard = targetDef.magicTokenCard;
+    } else if (targetDef.isSaboteur && room.veterans.has(targetPlayerId)) {
+      tokenCard = 'fail';
+    } else {
+      tokenCard = 'success';
+    }
+
     room.questCards = room.questCards.filter(c => c.playerId !== targetPlayerId);
     room.questCards.push({ playerId: targetPlayerId, card: tokenCard });
 
